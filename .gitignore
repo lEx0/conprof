@@ -1,5 +1,9 @@
 /conprof
-data/
+/data/
+/k8s/
+/.idea
+
+examples/dev.conprof.yaml
 
 deployments/jsonnetfile.lock.json
 deployments/vendor/

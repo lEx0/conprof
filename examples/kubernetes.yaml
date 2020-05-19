@@ -1,0 +1,83 @@
+scrape_configs:
+  - job_name: 'kubernetes-pods'
+    scrape_interval: 1m
+    scrape_timeout: 30s
+    scheme: https
+    profiling_config:
+      pprof_config:
+        allocs:
+          enabled: true
+          path: /debug/pprof/allocs
+        goroutine:
+          enabled: true
+          path: /debug/pprof/goroutine
+        heap:
+          enabled: true
+          path: /debug/pprof/heap
+        mutex:
+          enabled: true
+          path: /debug/pprof/mutex
+        profile:
+          enabled: true
+          path: /debug/pprof/profile
+        threadcreate:
+          enabled: false
+          path: /debug/pprof/threadcreate
+        trace:
+          enabled: false
+          path: /debug/pprof/trace
+    kubernetes_sd_configs:
+      - api_server: https://my-cluster.prod.dev
+        role: pod
+        tls_config:
+          ca_file: /Users/aman/Documents/conprof/k8s/ca.crt
+          cert_file: /Users/aman/Documents/conprof/k8s/cluster.crt
+          key_file: /Users/aman/Documents/conprof/k8s/cluster.key
+
+    tls_config:
+      ca_file: /Users/aman/Documents/conprof/k8s/ca.crt
+      cert_file: /Users/aman/Documents/conprof/k8s/cluster.crt
+      key_file: /Users/aman/Documents/conprof/k8s/cluster.key
+
+    relabel_configs:
+      # Filter out pods without pprof/scrape annotation
+      - source_labels:
+          - __meta_kubernetes_pod_annotation_pprof_scrape
+          - __meta_kubernetes_pod_container_port_name
+        regex: true;pprof
+        action: keep
+
+      # Rewrite port with pprof/port if exist
+      - source_labels:
+          - __meta_kubernetes_port_annotation_pprof_port
+        regex: (.+)
+        target_label: __meta_kubernetes_pod_container_port_number
+        replacement: $1
+
+      # Access via apiserver proxy
+      - target_label: __address__
+        replacement: my-cluster.prod.dev
+
+      # path prefix for proxy access
+      - source_labels:
+          - __meta_kubernetes_namespace
+          - __meta_kubernetes_pod_name
+          - __meta_kubernetes_pod_container_port_number
+        regex: (.+);(.+);(.+)
+        target_label: __prefix__
+        replacement: /api/v1/namespaces/$1/pods/$2:$3/proxy
+
+      # Add cluster label
+      - regex: .*
+        target_label: cluster
+        replacement: my-cluster.prod.dev
+
+      # Add cpu profiling duration label
+      - regex: .*
+        target_label: __param_seconds
+        replacement: 5
+
+      # Add pod label
+      - source_labels:
+          - __meta_kubernetes_pod_name
+        target_label: pod

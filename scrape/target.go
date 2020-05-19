@@ -34,7 +34,10 @@ import (
 // TargetHealth describes the health state of a target.
 type TargetHealth string
 
+const PrefixLabel = "__prefix__"
+
 // The possible health states of a target based on the last performed scrape.
+//noinspection GoUnusedConst
 const (
 	HealthUnknown TargetHealth = "unknown"
 	HealthGood    TargetHealth = "up"
@@ -75,8 +78,10 @@ func (t *Target) String() string {
 func (t *Target) hash() uint64 {
 	h := fnv.New64a()
 	//nolint: errcheck
+	//noinspection GoUnhandledErrorResult
 	h.Write([]byte(fmt.Sprintf("%016d", t.labels.Hash())))
 	//nolint: errcheck
+	//noinspection GoUnhandledErrorResult
 	h.Write([]byte(t.URL().String()))
 
 	return h.Sum64()
@@ -165,10 +170,15 @@ func (t *Target) URL() *url.URL {
 		}
 	}
 
+	path := t.labels.Get(ProfilePath)
+	if prefix := t.labels.Get(PrefixLabel); prefix != "" {
+		path = prefix + path
+	}
+
 	return &url.URL{
 		Scheme:   t.labels.Get(model.SchemeLabel),
 		Host:     t.labels.Get(model.AddressLabel),
-		Path:     t.labels.Get(ProfilePath),
+		Path:     path,
 		RawQuery: params.Encode(),
 	}
 }
