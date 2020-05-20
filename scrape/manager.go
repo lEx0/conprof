@@ -21,8 +21,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 
-	"github.com/conprof/conprof/config"
 	"github.com/conprof/tsdb"
+	"github.com/lEx0/conprof/config"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 )
 
@@ -109,6 +109,7 @@ func (m *Manager) reload() {
 		if !ok {
 			scrapeConfig, ok := m.scrapeConfigs[setName]
 			if !ok {
+				//noinspection GoUnhandledErrorResult
 				level.Error(m.logger).Log("msg", "error reloading target set", "err", "invalid config id:"+setName)
 				return
 			}

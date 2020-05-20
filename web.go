@@ -17,13 +17,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/conprof/conprof/api"
-	"github.com/conprof/conprof/pprofui"
-	"github.com/conprof/conprof/web"
 	"github.com/conprof/tsdb"
 	"github.com/conprof/tsdb/wal"
 	"github.com/go-kit/kit/log"
 	"github.com/julienschmidt/httprouter"
+	"github.com/lEx0/conprof/api"
+	"github.com/lEx0/conprof/pprofui"
+	"github.com/lEx0/conprof/web"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -65,8 +65,8 @@ func runWeb(mux *http.ServeMux, logger log.Logger, db *tsdb.DB) error {
 
 	router.GET("/pprof/*remainder", ui.PprofView)
 
-	api := api.New(log.With(logger, "component", "pprofui"), db)
-	router.GET("/api/v1/query_range", api.QueryRange)
+	client := api.New(log.With(logger, "component", "pprofui"), db)
+	router.GET("/api/v1/query_range", client.QueryRange)
 
 	router.NotFound = http.FileServer(web.Assets)
 

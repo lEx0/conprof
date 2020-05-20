@@ -19,12 +19,12 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/conprof/conprof/config"
-	"github.com/conprof/conprof/scrape"
 	"github.com/conprof/tsdb"
 	"github.com/conprof/tsdb/wal"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/lEx0/conprof/config"
+	"github.com/lEx0/conprof/scrape"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -82,6 +82,7 @@ func runSampler(g *run.Group, logger log.Logger, db *tsdb.DB, configFile string)
 		}
 		err := discoveryManagerScrape.ApplyConfig(c)
 		if err != nil {
+			//noinspection GoUnhandledErrorResult
 			level.Error(logger).Log("msg", err)
 			cancelScrape()
 			return err
@@ -90,10 +91,12 @@ func runSampler(g *run.Group, logger log.Logger, db *tsdb.DB, configFile string)
 		g.Add(
 			func() error {
 				err := discoveryManagerScrape.Run()
+				//noinspection GoUnhandledErrorResult
 				level.Info(logger).Log("msg", "Scrape discovery manager stopped")
 				return err
 			},
 			func(err error) {
+				//noinspection GoUnhandledErrorResult,GoUnusedCallResult
 				level.Info(logger).Log("msg", "Stopping scrape discovery manager...")
 				cancelScrape()
 			},
@@ -108,6 +111,7 @@ func runSampler(g *run.Group, logger log.Logger, db *tsdb.DB, configFile string)
 			}
 			return scrapeManager.Run(discoveryManagerScrape.SyncCh())
 		}, func(error) {
+			//noinspection GoUnhandledErrorResult
 			level.Debug(logger).Log("msg", "shutting down scrape manager")
 			scrapeManager.Stop()
 			cancel()
