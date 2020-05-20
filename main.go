@@ -25,9 +25,9 @@ import (
 
 	"net/http/pprof"
 
-	"github.com/conprof/conprof/pkg/runutil"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/lEx0/conprof/pkg/runutil"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
@@ -70,6 +70,7 @@ func main() {
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
+		//noinspection GoUnhandledErrorResult
 		fmt.Fprintln(os.Stderr, errors.Wrapf(err, "Error parsing commandline arguments"))
 		app.Usage(os.Args[1:])
 		os.Exit(2)
@@ -117,6 +118,7 @@ func main() {
 	mux := http.NewServeMux()
 
 	if err := cmds[cmd](&g, mux, logger, metrics, tracer, *logLevel == "debug"); err != nil {
+		//noinspection GoUnhandledErrorResult
 		fmt.Fprintln(os.Stderr, errors.Wrapf(err, "%s command failed", cmd))
 		os.Exit(1)
 	}
@@ -127,14 +129,17 @@ func main() {
 
 		l, err := net.Listen("tcp", *httpBindAddr)
 		if err != nil {
+			//noinspection GoUnhandledErrorResult
 			level.Error(logger).Log("msg", err)
 			os.Exit(1)
 		}
 
 		g.Add(func() error {
+			//noinspection GoUnhandledErrorResult
 			level.Info(logger).Log("msg", "Listening for http", "address", *httpBindAddr)
 			return errors.Wrap(http.Serve(l, mux), "serve http")
 		}, func(error) {
+			//noinspection GoUnhandledErrorResult
 			level.Debug(logger).Log("msg", "shutting down http listener")
 			runutil.CloseWithLogOnErr(logger, l, "http listener")
 		})
@@ -146,15 +151,18 @@ func main() {
 		g.Add(func() error {
 			return interrupt(logger, cancel)
 		}, func(error) {
+			//noinspection GoUnhandledErrorResult
 			level.Debug(logger).Log("msg", "shutting down interrupt handler")
 			close(cancel)
 		})
 	}
 
 	if err := g.Run(); err != nil {
+		//noinspection GoUnhandledErrorResult
 		level.Error(logger).Log("msg", "running command failed", "err", err)
 		os.Exit(1)
 	}
+	//noinspection GoUnhandledErrorResult
 	level.Info(logger).Log("msg", "exiting")
 }
 
@@ -180,6 +188,7 @@ func interrupt(logger log.Logger, cancel <-chan struct{}) error {
 	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 	select {
 	case s := <-c:
+		//noinspection GoUnhandledErrorResult
 		level.Info(logger).Log("msg", "caught signal. Exiting.", "signal", s)
 		return nil
 	case <-cancel:

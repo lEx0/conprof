@@ -21,8 +21,8 @@ import (
 
 	"github.com/shurcooL/vfsgen"
 
-	"github.com/conprof/conprof/web"
-	"github.com/conprof/conprof/web/modtimevfs"
+	"github.com/lEx0/conprof/web"
+	"github.com/lEx0/conprof/web/modtimevfs"
 )
 
 func main() {

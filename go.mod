@@ -1,4 +1,4 @@
-module github.com/conprof/conprof
+module github.com/lEx0/conprof
 
 go 1.13
 

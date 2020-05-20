@@ -26,7 +26,7 @@ import (
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/pkg/relabel"
 
-	"github.com/conprof/conprof/config"
+	"github.com/lEx0/conprof/config"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/pkg/labels"
 )

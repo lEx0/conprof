@@ -3,7 +3,7 @@ go:
     # .circle/config.yml should also be updated.
     version: 1.13
 repository:
-    path: github.com/conprof/conprof
+    path: github.com/lEx0/conprof
 build:
     binaries:
         - name: conprof

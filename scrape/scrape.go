@@ -30,8 +30,8 @@ import (
 	"github.com/prometheus/common/version"
 	"golang.org/x/net/context/ctxhttp"
 
-	"github.com/conprof/conprof/config"
 	"github.com/conprof/tsdb/labels"
+	"github.com/lEx0/conprof/config"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
 	"github.com/prometheus/prometheus/pkg/pool"
 	"github.com/prometheus/prometheus/pkg/timestamp"
@@ -133,6 +133,7 @@ func newScrapePool(cfg *config.ScrapeConfig, app Appendable, logger log.Logger) 
 	client, err := config.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName)
 	if err != nil {
 		// Any errors that could occur here should be caught during config validation.
+		//noinspection GoUnhandledErrorResult
 		level.Error(logger).Log("msg", "Error creating HTTP client", "err", err)
 	}
 
@@ -213,6 +214,7 @@ func (sp *scrapePool) reload(cfg *config.ScrapeConfig) {
 	client, err := config.NewClientFromConfig(cfg.HTTPClientConfig, cfg.JobName)
 	if err != nil {
 		// Any errors that could occur here should be caught during config validation.
+		//noinspection GoUnhandledErrorResult
 		level.Error(sp.logger).Log("msg", "Error creating HTTP client", "err", err)
 	}
 	sp.config = cfg
@@ -259,6 +261,7 @@ func (sp *scrapePool) Sync(tgs []*targetgroup.Group) {
 	for _, tg := range tgs {
 		targets, err := targetsFromGroup(tg, sp.config)
 		if err != nil {
+			//noinspection GoUnhandledErrorResult
 			level.Error(sp.logger).Log("msg", "creating targets failed", "err", err)
 			continue
 		}
@@ -367,11 +370,13 @@ func (s *targetScraper) scrape(ctx context.Context, w io.Writer) error {
 		s.req = req
 	}
 
+	//noinspection GoUnhandledErrorResult
 	level.Debug(s.logger).Log("msg", "scraping profile", "url", s.req.URL.String())
 	resp, err := ctxhttp.Do(ctx, s.client, s.req)
 	if err != nil {
 		return err
 	}
+	//noinspection GoUnhandledErrorResult
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -502,6 +507,7 @@ mainLoop:
 				errc <- err
 			}
 		} else {
+			//noinspection GoUnhandledErrorResult
 			level.Debug(sl.l).Log("msg", "Scrape failed", "err", scrapeErr.Error())
 			if errc != nil {
 				errc <- scrapeErr
