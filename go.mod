@@ -9,6 +9,7 @@ require (
 	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/julienschmidt/httprouter v1.2.0
 	github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223
+	github.com/ncw/swift v1.0.52
 	github.com/oklog/run v1.0.0
 	github.com/opentracing/opentracing-go v1.1.0
 	github.com/pkg/errors v0.8.1

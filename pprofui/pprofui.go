@@ -32,6 +32,7 @@ import (
 	"github.com/google/pprof/driver"
 	"github.com/google/pprof/profile"
 	"github.com/julienschmidt/httprouter"
+	"github.com/lEx0/conprof/rtsb/storage"
 	"github.com/pkg/errors"
 	"github.com/prometheus/prometheus/promql"
 	"github.com/spf13/pflag"
@@ -40,13 +41,15 @@ import (
 type pprofUI struct {
 	logger log.Logger
 	db     *tsdb.DB
+	strg   storage.Storage
 }
 
 // NewServer creates a new Server backed by the supplied Storage.
-func New(logger log.Logger, db *tsdb.DB) *pprofUI {
+func New(logger log.Logger, db *tsdb.DB, strg storage.Storage) *pprofUI {
 	s := &pprofUI{
 		logger: logger,
 		db:     db,
+		strg:   strg,
 	}
 
 	return s
@@ -60,11 +63,12 @@ func parsePath(reqPath string) (series string, timestamp string, remainingPath s
 	return parts[0], parts[1], strings.Join(parts[2:], "/")
 }
 
-func (p *pprofUI) PprofView(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+func (p *pprofUI) PprofView(w http.ResponseWriter, r *http.Request, _ httprouter.Params) {
 	series, timestamp, remainingPath := parsePath(r.URL.Path)
 	if !strings.HasPrefix(remainingPath, "/") {
 		remainingPath = "/" + remainingPath
 	}
+	//noinspection GoUnhandledErrorResult
 	level.Debug(p.logger).Log("msg", "parsed path", "series", series, "timestamp", timestamp, "remainingPath", remainingPath)
 	decodedSeriesName, err := base64.URLEncoding.DecodeString(series)
 	if err != nil {
@@ -99,11 +103,13 @@ func (p *pprofUI) PprofView(w http.ResponseWriter, r *http.Request, ps httproute
 
 		q, err := p.db.Querier(0, math.MaxInt64)
 		if err != nil {
+			//noinspection GoUnhandledErrorResult
 			level.Error(p.logger).Log("err", err)
 		}
 
 		ss, err := q.Select(m...)
 		if err != nil {
+			//noinspection GoUnhandledErrorResult
 			level.Error(p.logger).Log("err", err)
 			return nil, "", err
 		}
@@ -123,7 +129,17 @@ func (p *pprofUI) PprofView(w http.ResponseWriter, r *http.Request, ps httproute
 			return nil, "", errors.New("could not seek series")
 		}
 		_, buf := i.At()
-		prof, err = profile.Parse(bytes.NewReader(buf))
+
+		if p.strg == nil {
+			prof, err = profile.Parse(bytes.NewReader(buf))
+		} else {
+			data := bytes.NewBuffer([]byte{})
+			if err := p.strg.Get(string(buf), data); err != nil {
+				return nil, "", errors.New("cannot fetch data from remote storage")
+			}
+			prof, err = profile.Parse(data)
+		}
+
 		return prof, "", err
 	}
 

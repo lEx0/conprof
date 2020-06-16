@@ -23,6 +23,7 @@ import (
 	"github.com/julienschmidt/httprouter"
 	"github.com/lEx0/conprof/api"
 	"github.com/lEx0/conprof/pprofui"
+	"github.com/lEx0/conprof/rtsb/storage"
 	"github.com/lEx0/conprof/web"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -36,7 +37,12 @@ func registerWeb(m map[string]setupFunc, app *kingpin.Application, name string) 
 
 	storagePath := cmd.Flag("storage.tsdb.path", "Directory to read storage from.").
 		Default("./data").String()
-	retention := modelDuration(cmd.Flag("storage.tsdb.retention.time", "How long to retain raw samples on local storage. 0d - disables this retention").Default("15d"))
+	retention := modelDuration(cmd.Flag(
+		"storage.tsdb.retention.time",
+		"How long to retain raw samples on local storage. 0d - disables this retention",
+	).Default("15d"))
+	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
+		Default("").String()
 
 	m[name] = func(g *run.Group, mux *http.ServeMux, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, debugLogging bool) error {
 		db, err := tsdb.Open(
@@ -53,12 +59,25 @@ func registerWeb(m map[string]setupFunc, app *kingpin.Application, name string) 
 		if err != nil {
 			return err
 		}
-		return runWeb(mux, logger, db)
+
+		var strg storage.Storage
+
+		if *remoteStorageUrl != "" {
+			if strg, err = storage.NewSwiftStorage(storage.Options{
+				URL:     *remoteStorageUrl,
+				Timeout: time.Second * 10,
+				Bucket:  "pprof",
+			}); err != nil {
+				return err
+			}
+		}
+
+		return runWeb(mux, logger, db, strg)
 	}
 }
 
-func runWeb(mux *http.ServeMux, logger log.Logger, db *tsdb.DB) error {
-	ui := pprofui.New(log.With(logger, "component", "pprofui"), db)
+func runWeb(mux *http.ServeMux, logger log.Logger, db *tsdb.DB, storage storage.Storage) error {
+	ui := pprofui.New(log.With(logger, "component", "pprofui"), db, storage)
 
 	router := httprouter.New()
 	router.RedirectTrailingSlash = false

@@ -20,6 +20,8 @@ import (
 	"github.com/conprof/tsdb"
 	"github.com/conprof/tsdb/wal"
 	"github.com/go-kit/kit/log"
+	"github.com/lEx0/conprof/rtsb"
+	"github.com/lEx0/conprof/rtsb/storage"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/prometheus/client_golang/prometheus"
@@ -35,10 +37,22 @@ func registerAll(m map[string]setupFunc, app *kingpin.Application, name string) 
 		Default("./data").String()
 	configFile := cmd.Flag("config.file", "Config file to use.").
 		Default("conprof.yaml").String()
-	retention := modelDuration(cmd.Flag("storage.tsdb.retention.time", "How long to retain raw samples on local storage. 0d - disables this retention").Default("15d"))
+	retention := modelDuration(cmd.Flag(
+		"storage.tsdb.retention.time",
+		"How long to retain raw samples on local storage. 0d - disables this retention",
+	).Default("15d"))
+	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
+		Default("").String()
 
-	m[name] = func(g *run.Group, mux *http.ServeMux, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, debugLogging bool) error {
-		return runAll(g, mux, logger, *storagePath, *configFile, *retention)
+	m[name] = func(
+		g *run.Group,
+		mux *http.ServeMux,
+		logger log.Logger,
+		reg *prometheus.Registry,
+		tracer opentracing.Tracer,
+		debugLogging bool,
+	) error {
+		return runAll(g, mux, logger, *storagePath, *configFile, *remoteStorageUrl, *retention)
 	}
 }
 
@@ -49,7 +63,15 @@ func modelDuration(flags *kingpin.FlagClause) *model.Duration {
 	return value
 }
 
-func runAll(g *run.Group, mux *http.ServeMux, logger log.Logger, storagePath, configFile string, retention model.Duration) error {
+func runAll(
+	g *run.Group,
+	mux *http.ServeMux,
+	logger log.Logger,
+	storagePath,
+	configFile,
+	remoteStorageUrl string,
+	retention model.Duration,
+) error {
 	db, err := tsdb.Open(
 		storagePath,
 		logger,
@@ -65,12 +87,23 @@ func runAll(g *run.Group, mux *http.ServeMux, logger log.Logger, storagePath, co
 		return err
 	}
 
-	err = runSampler(g, logger, db, configFile)
-	if err != nil {
+	var strg storage.Storage
+
+	if remoteStorageUrl != "" {
+		if strg, err = storage.NewSwiftStorage(storage.Options{
+			URL:     remoteStorageUrl,
+			Timeout: time.Second * 10,
+			Bucket:  "pprof",
+		}); err != nil {
+			return err
+		} else if err = runSampler(g, logger, rtsb.NewRemoteTSDB(strg, db), configFile); err != nil {
+			return err
+		}
+	} else if err = runSampler(g, logger, db, configFile); err != nil {
 		return err
 	}
 
-	err = runWeb(mux, logger, db)
+	err = runWeb(mux, logger, db, strg)
 	if err != nil {
 		return err
 	}

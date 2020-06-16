@@ -24,6 +24,8 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/lEx0/conprof/config"
+	"github.com/lEx0/conprof/rtsb"
+	"github.com/lEx0/conprof/rtsb/storage"
 	"github.com/lEx0/conprof/scrape"
 	"github.com/oklog/run"
 	opentracing "github.com/opentracing/opentracing-go"
@@ -41,9 +43,21 @@ func registerSampler(m map[string]setupFunc, app *kingpin.Application, name stri
 		Default("./data").String()
 	configFile := cmd.Flag("config.file", "Config file to use.").
 		Default("conprof.yaml").String()
-	retention := modelDuration(cmd.Flag("storage.tsdb.retention.time", "How long to retain raw samples on local storage. 0d - disables this retention").Default("15d"))
+	retention := modelDuration(cmd.Flag(
+		"storage.tsdb.retention.time",
+		"How long to retain raw samples on local storage. 0d - disables this retention",
+	).Default("15d"))
+	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
+		Default("").String()
 
-	m[name] = func(g *run.Group, mux *http.ServeMux, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, debugLogging bool) error {
+	m[name] = func(
+		g *run.Group,
+		mux *http.ServeMux,
+		logger log.Logger,
+		reg *prometheus.Registry,
+		tracer opentracing.Tracer,
+		debugLogging bool,
+	) error {
 		db, err := tsdb.Open(
 			*storagePath,
 			logger,
@@ -51,28 +65,54 @@ func registerSampler(m map[string]setupFunc, app *kingpin.Application, name stri
 			&tsdb.Options{
 				WALSegmentSize:    wal.DefaultSegmentSize,
 				RetentionDuration: uint64(*retention),
-				BlockRanges:       append([]int64{int64(10 * time.Minute), int64(1 * time.Hour)}, tsdb.ExponentialBlockRanges(int64(2*time.Hour)/1e6, 3, 5)...),
-				NoLockfile:        true,
+				BlockRanges: append(
+					[]int64{int64(10 * time.Minute), int64(1 * time.Hour)},
+					tsdb.ExponentialBlockRanges(int64(2*time.Hour)/1e6, 3, 5)...,
+				),
+				NoLockfile: true,
 			},
 		)
 		if err != nil {
 			return err
 		}
+
+		if *remoteStorageUrl != "" {
+			var strg storage.Storage
+
+			if strg, err = storage.NewSwiftStorage(storage.Options{
+				URL:     *remoteStorageUrl,
+				Timeout: time.Second * 10,
+				Bucket:  "pprof",
+			}); err != nil {
+				return err
+			}
+
+			return runSampler(g, logger, rtsb.NewRemoteTSDB(strg, db), *configFile)
+		}
+
 		return runSampler(g, logger, db, *configFile)
 	}
 }
 
-func runSampler(g *run.Group, logger log.Logger, db *tsdb.DB, configFile string) error {
+func runSampler(g *run.Group, logger log.Logger, db tsdb.Appendable, configFile string) error {
 	scrapeManager := scrape.NewManager(log.With(logger, "component", "scrape-manager"), db)
 	cfg, err := config.LoadFile(configFile)
 	if err != nil {
 		return fmt.Errorf("could not load config: %v", err)
 	}
 
-	discoveryManagerScrape := discovery.NewManager(context.Background(), log.With(logger, "component", "discovery manager scrape"), discovery.Name("scrape"))
+	discoveryManagerScrape := discovery.NewManager(
+		context.Background(),
+		log.With(logger, "component", "discovery manager scrape"),
+		discovery.Name("scrape"),
+	)
 
 	ctxScrape, cancelScrape := context.WithCancel(context.Background())
-	discoveryManagerScrape = discovery.NewManager(ctxScrape, log.With(logger, "component", "discovery manager scrape"), discovery.Name("scrape"))
+	discoveryManagerScrape = discovery.NewManager(
+		ctxScrape,
+		log.With(logger, "component", "discovery manager scrape"),
+		discovery.Name("scrape"),
+	)
 
 	{
 

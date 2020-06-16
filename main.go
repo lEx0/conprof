@@ -67,6 +67,7 @@ func main() {
 	registerSampler(cmds, app, "sampler")
 	registerWeb(cmds, app, "web")
 	registerAll(cmds, app, "all")
+	RegisterClear(cmds, app, "clear")
 
 	cmd, err := app.Parse(os.Args[1:])
 	if err != nil {
