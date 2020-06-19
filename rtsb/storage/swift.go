@@ -2,6 +2,8 @@ package storage
 
 import (
 	"errors"
+	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/log/level"
 	"github.com/ncw/swift"
 	"io"
 	"net/url"
@@ -17,10 +19,11 @@ type (
 	SwiftStorage struct {
 		bucket string
 		conn   *swift.Connection
+		logger log.Logger
 	}
 )
 
-func NewSwiftStorage(options Options) (c *SwiftStorage, err error) {
+func NewSwiftStorage(options Options, logger log.Logger) (c *SwiftStorage, err error) {
 	var uri *url.URL
 
 	if options.Bucket == "" {
@@ -51,6 +54,7 @@ func NewSwiftStorage(options Options) (c *SwiftStorage, err error) {
 	return &SwiftStorage{
 		conn:   conn,
 		bucket: options.Bucket,
+		logger: logger,
 	}, err
 }
 
@@ -69,17 +73,28 @@ func (s *SwiftStorage) Get(name string, output io.Writer) (err error) {
 }
 
 func (s *SwiftStorage) PruneOldest(date time.Time) error {
+	removeCh := make(chan swift.Object, 10)
+	defer close(removeCh)
+
+	go func() {
+		for object := range removeCh {
+			if object.LastModified.Before(date) {
+				level.Info(s.logger).Log("remove file", object.Name)
+				if err := s.Delete(object.Name); err != nil {
+					//noinspection GoUnhandledErrorResult
+					level.Error(s.logger).Log("cannot remove object", object.Name, err)
+				}
+			}
+		}
+	}()
+
 	return s.conn.ObjectsWalk(
 		s.bucket, &swift.ObjectsOpts{Limit: 50}, func(opts *swift.ObjectsOpts) (interface{}, error) {
 			objects, err := s.conn.Objects(s.bucket, opts)
 
 			if err == nil {
 				for _, object := range objects {
-					if object.LastModified.Before(date) {
-						if err = s.Delete(object.Name); err != nil {
-							return nil, err
-						}
-					}
+					removeCh <- object
 				}
 			}
 

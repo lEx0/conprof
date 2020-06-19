@@ -67,7 +67,7 @@ func registerWeb(m map[string]setupFunc, app *kingpin.Application, name string) 
 				URL:     *remoteStorageUrl,
 				Timeout: time.Second * 10,
 				Bucket:  "pprof",
-			}); err != nil {
+			}, logger); err != nil {
 				return err
 			}
 		}

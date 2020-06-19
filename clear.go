@@ -49,7 +49,7 @@ func runClear(logger log.Logger, url string, retention model.Duration) (err erro
 		URL:     url,
 		Timeout: time.Second * 10,
 		Bucket:  "pprof",
-	}); err != nil {
+	}, logger); err != nil {
 		//noinspection GoUnhandledErrorResult
 		logger.Log("cannot connect to storage", err)
 		return

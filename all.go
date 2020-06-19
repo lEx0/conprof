@@ -94,7 +94,7 @@ func runAll(
 			URL:     remoteStorageUrl,
 			Timeout: time.Second * 10,
 			Bucket:  "pprof",
-		}); err != nil {
+		}, logger); err != nil {
 			return err
 		} else if err = runSampler(g, logger, rtsb.NewRemoteTSDB(strg, db), configFile); err != nil {
 			return err

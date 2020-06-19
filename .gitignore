@@ -2,6 +2,7 @@
 /data/
 /k8s/
 /.idea
+/vendor
 
 examples/dev.conprof.yaml
 
