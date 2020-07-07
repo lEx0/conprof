@@ -75,7 +75,7 @@ func (s *SwiftStorage) getBucketName(name string) string {
 
 func (s *SwiftStorage) Upload(name string, r io.Reader) (err error) {
 	//noinspection GoUnhandledErrorResult
-	level.Debug(s.logger).Log("upload object", name)
+	level.Debug(s.logger).Log("msg", "upload profile data", "bucket", s.getBucketName(name), "object", name)
 
 	_, err = s.conn.ObjectPut(s.getBucketName(name), name, r, true, "", "application/octet-stream", swift.Headers{})
 	return
@@ -83,14 +83,14 @@ func (s *SwiftStorage) Upload(name string, r io.Reader) (err error) {
 
 func (s *SwiftStorage) Delete(name string) error {
 	//noinspection GoUnhandledErrorResult
-	level.Debug(s.logger).Log("delete object", name)
+	level.Debug(s.logger).Log("msg", "delete profile data", "bucket", s.getBucketName(name), "object", name)
 
 	return s.conn.ObjectDelete(s.getBucketName(name), name)
 }
 
 func (s *SwiftStorage) Get(name string, output io.Writer) (err error) {
 	//noinspection GoUnhandledErrorResult
-	level.Debug(s.logger).Log("get object", name)
+	level.Debug(s.logger).Log("msg", "get profile data", "bucket", s.getBucketName(name), "object", name)
 
 	_, err = s.conn.ObjectGet(s.getBucketName(name), name, output, true, swift.Headers{})
 	return
@@ -102,16 +102,16 @@ func (s *SwiftStorage) PruneOldest(date time.Time) error {
 
 	for i := 0; i < 10; i++ {
 		//noinspection GoUnhandledErrorResult
-		level.Debug(s.logger).Log("run prune worker #", i)
+		level.Debug(s.logger).Log("msg", "run prune", "worker", i)
 
 		go func(i int) {
 			for object := range removeCh {
 				if object.LastModified.Before(date) {
 					//noinspection GoUnhandledErrorResult
-					level.Info(s.logger).Log("worker", i, "remove file", object.Name)
+					level.Info(s.logger).Log("msg", "remove file", "worker", i, "object", object.Name)
 					if err := s.Delete(object.Name); err != nil {
 						//noinspection GoUnhandledErrorResult
-						level.Error(s.logger).Log("worker", i, "cannot remove object", object.Name, err)
+						level.Error(s.logger).Log("msg", "cannot remove object", "worker", i, "object", object.Name, err)
 					}
 				}
 			}

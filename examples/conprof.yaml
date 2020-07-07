@@ -4,3 +4,22 @@ scrape_configs:
   scrape_timeout: 1m
   static_configs:
   - targets: ['localhost:8080']
+  profiling_config:
+    pprof_config:
+      allocs:
+        enabled: true
+        path: /debug/pprof/allocs
+      block:
+        enabled: false
+      goroutine:
+        enabled: false
+      heap:
+        enabled: false
+      mutex:
+        enabled: false
+      profile:
+        enabled: false
+      threadcreate:
+        enabled: false
+      trace:
+        enabled: false
