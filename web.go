@@ -43,6 +43,8 @@ func registerWeb(m map[string]setupFunc, app *kingpin.Application, name string) 
 	).Default("15d"))
 	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
 		Default("").String()
+	remoteStoragePartitionKeySize := cmd.Flag("storage.tsdb.remote.patition", "size of partition key").
+		Default("0").Int()
 
 	m[name] = func(g *run.Group, mux *http.ServeMux, logger log.Logger, reg *prometheus.Registry, tracer opentracing.Tracer, debugLogging bool) error {
 		db, err := tsdb.Open(
@@ -64,9 +66,10 @@ func registerWeb(m map[string]setupFunc, app *kingpin.Application, name string) 
 
 		if *remoteStorageUrl != "" {
 			if strg, err = storage.NewSwiftStorage(storage.Options{
-				URL:     *remoteStorageUrl,
-				Timeout: time.Second * 10,
-				Bucket:  "pprof",
+				URL:                    *remoteStorageUrl,
+				Timeout:                time.Second * 10,
+				Bucket:                 "pprof",
+				PartitionPrefixKeySize: *remoteStoragePartitionKeySize,
 			}, logger); err != nil {
 				return err
 			}

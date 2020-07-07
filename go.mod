@@ -3,6 +3,7 @@ module github.com/lEx0/conprof
 go 1.13
 
 require (
+	github.com/cespare/xxhash v1.1.0
 	github.com/conprof/tsdb v0.8.1-0.20190522132737-ee822c001f9a
 	github.com/go-kit/kit v0.8.0
 	github.com/google/pprof v0.0.0-20190515194954-54271f7e092f

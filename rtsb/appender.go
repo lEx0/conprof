@@ -3,12 +3,13 @@ package rtsb
 import (
 	"bytes"
 	"fmt"
-	"github.com/go-kit/kit/log"
 	"math/rand"
 	"strconv"
 
+	"github.com/cespare/xxhash"
 	"github.com/conprof/tsdb"
 	"github.com/conprof/tsdb/labels"
+	"github.com/go-kit/kit/log"
 	"github.com/lEx0/conprof/rtsb/storage"
 )
 
@@ -19,7 +20,10 @@ type dbAppender struct {
 }
 
 func (c *dbAppender) Add(l labels.Labels, t int64, v []byte) (i uint64, err error) {
-	name := fmt.Sprintf("%d-%s.pprof", t, strconv.FormatUint(rand.Uint64(), 16))
+	// т.к. rand.Uint64() возвращает число от 0 до 18446744073709551615, можем вполне получить 0
+	// а нам потом надо по бакетам распиливать, так что дополнительно хешируем через xxhash
+	// что бы получить строку с фиксированной длинной
+	name := fmt.Sprintf("%d-%d.pprof", xxhash.Sum64([]byte(strconv.FormatUint(rand.Uint64(), 16))), t)
 
 	if err = c.storage.Upload(name, bytes.NewBuffer(v)); err != nil {
 		return
@@ -36,7 +40,10 @@ func (c *dbAppender) Add(l labels.Labels, t int64, v []byte) (i uint64, err erro
 }
 
 func (c *dbAppender) AddFast(ref uint64, t int64, v []byte) (err error) {
-	name := fmt.Sprintf("%d-%s.pprof", t, strconv.FormatUint(rand.Uint64(), 16))
+	// т.к. rand.Uint64() возвращает число от 0 до 18446744073709551615, можем вполне получить 0
+	// а нам потом надо по бакетам секционировать, так что дополнительно хешируем через xxhash
+	// что бы получить строку с фиксированной длинной
+	name := fmt.Sprintf("%d-%d.pprof", xxhash.Sum64([]byte(strconv.FormatUint(rand.Uint64(), 16))), t)
 
 	if err = c.storage.Upload(name, bytes.NewBuffer(v)); err != nil {
 		return

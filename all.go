@@ -43,6 +43,8 @@ func registerAll(m map[string]setupFunc, app *kingpin.Application, name string) 
 	).Default("15d"))
 	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
 		Default("").String()
+	remoteStoragePartitionKeySize := cmd.Flag("storage.tsdb.remote.patition", "size of partition key").
+		Default("0").Int()
 
 	m[name] = func(
 		g *run.Group,
@@ -52,7 +54,7 @@ func registerAll(m map[string]setupFunc, app *kingpin.Application, name string) 
 		tracer opentracing.Tracer,
 		debugLogging bool,
 	) error {
-		return runAll(g, mux, logger, *storagePath, *configFile, *remoteStorageUrl, *retention)
+		return runAll(g, mux, logger, *storagePath, *configFile, *remoteStorageUrl, *retention, *remoteStoragePartitionKeySize)
 	}
 }
 
@@ -71,6 +73,7 @@ func runAll(
 	configFile,
 	remoteStorageUrl string,
 	retention model.Duration,
+	partitionKeySize int,
 ) error {
 	db, err := tsdb.Open(
 		storagePath,
@@ -91,9 +94,10 @@ func runAll(
 
 	if remoteStorageUrl != "" {
 		if strg, err = storage.NewSwiftStorage(storage.Options{
-			URL:     remoteStorageUrl,
-			Timeout: time.Second * 10,
-			Bucket:  "pprof",
+			URL:                    remoteStorageUrl,
+			Timeout:                time.Second * 10,
+			Bucket:                 "pprof",
+			PartitionPrefixKeySize: partitionKeySize,
 		}, logger); err != nil {
 			return err
 		} else if err = runSampler(g, logger, rtsb.NewRemoteTSDB(strg, db), configFile); err != nil {

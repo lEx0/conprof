@@ -49,6 +49,8 @@ func registerSampler(m map[string]setupFunc, app *kingpin.Application, name stri
 	).Default("15d"))
 	remoteStorageUrl := cmd.Flag("storage.tsdb.remote.url", "Binary profiles storage URL").
 		Default("").String()
+	remoteStoragePartitionKeySize := cmd.Flag("storage.tsdb.remote.patition", "size of partition key").
+		Default("0").Int()
 
 	m[name] = func(
 		g *run.Group,
@@ -80,9 +82,10 @@ func registerSampler(m map[string]setupFunc, app *kingpin.Application, name stri
 			var strg storage.Storage
 
 			if strg, err = storage.NewSwiftStorage(storage.Options{
-				URL:     *remoteStorageUrl,
-				Timeout: time.Second * 10,
-				Bucket:  "pprof",
+				URL:                    *remoteStorageUrl,
+				Timeout:                time.Second * 10,
+				Bucket:                 "pprof",
+				PartitionPrefixKeySize: *remoteStoragePartitionKeySize,
 			}, logger); err != nil {
 				return err
 			}
